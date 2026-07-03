@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>운동 기록</title>
+<style>
+  /* ============================================================
+     DESIGN TOKENS — Apple Settings-app inspired
+     ============================================================ */
+  :root{
+    --bg: #F2F2F7;
+    --card: #FFFFFF;
+    --label: #000000;
+    --label-secondary: #8A8A8E;
+    --label-tertiary: #C7C7CC;
+    --separator: #E5E5EA;
+    --blue: #0A84FF;
+    --blue-dark: #0060DF;
+    --bar-empty: #D8D8DE;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+    --ease-out: cubic-bezier(0.25, 0.8, 0.35, 1);
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+             "Helvetica Neue", "Apple SD Gothic Neo", Arial, sans-serif;
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    margin:0; padding:0;
+    background: var(--bg);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  /* Plain, ordinary web page — mobile-first, simply capped in width on
+     larger screens like any responsive site (not a device mockup). */
+  #app{
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    padding-top: env(safe-area-inset-top, 20px);
+    padding-bottom: 60px;
+  }
+
+  /* ============================================================
+     HEADER
+     ============================================================ */
+  header{ padding: 8px 20px 4px; }
+  .page-title{
+    font-size: 34px;
+    font-weight: 700;
+    letter-spacing: -0.4px;
+    color: var(--label);
+    margin: 10px 0 16px;
+  }
+  .month-switcher{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background: var(--card);
+    border-radius: var(--radius-md);
+    padding: 10px 6px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  }
+  .month-switcher .month-label{
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--label);
+    flex:1;
+    text-align:center;
+    letter-spacing: -0.2px;
+  }
+  .arrow-btn{
+    width:40px; height:40px;
+    display:flex; align-items:center; justify-content:center;
+    border:none; background:transparent;
+    border-radius: 50%;
+    color: var(--blue);
+    font-size: 19px;
+    font-weight: 600;
+    cursor:pointer;
+    transition: background-color 200ms var(--ease-out), transform 200ms var(--ease-out), opacity 200ms var(--ease-out);
+  }
+  .arrow-btn:active{
+    background-color: rgba(10,132,255,0.12);
+    transform: scale(0.90);
+    opacity: 0.7;
+  }
+
+  main{ padding: 0 20px; }
+
+  /* ============================================================
+     GENERIC CARD
+     ============================================================ */
+  .card{
+    background: var(--card);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 1px rgba(0,0,0,0.03);
+    margin-bottom: 16px;
+    overflow:hidden;
+    animation: cardIn 320ms var(--ease-out);
+  }
+  @keyframes cardIn{
+    from{ opacity:0; transform: translateY(8px) scale(0.99); }
+    to{ opacity:1; transform: translateY(0) scale(1); }
+  }
+
+  .summary-card{ display:flex; }
+  .summary-item{ flex:1; padding: 16px 14px; text-align:center; }
+  .summary-item + .summary-item{ border-left: 1px solid var(--separator); }
+  .summary-label{ font-size: 12px; color: var(--label-secondary); font-weight: 500; margin-bottom: 4px; }
+  .summary-value{ font-size: 22px; font-weight: 700; color: var(--label); letter-spacing: -0.3px; }
+  .summary-value .unit{ font-size: 14px; font-weight: 600; color: var(--label-secondary); margin-left: 1px; }
+
+  /* ============================================================
+     CHART CARD — the single entry point for editing any day
+     ============================================================ */
+  .chart-card{ padding: 16px 14px 10px; }
+  .chart-title{
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--label-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin: 2px 4px 4px;
+  }
+  .chart-hint{
+    font-size: 11.5px;
+    color: var(--label-tertiary);
+    margin: 0 4px 14px;
+  }
+  .chart-wrap{
+    position:relative;
+    display:flex;
+    align-items:flex-end;
+    gap: 3px;
+    height: 160px;
+    padding-top: 22px;
+  }
+  .bar-col{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-end;
+    height:100%;
+    cursor:pointer;
+    border-radius: 6px;
+    transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out), opacity 180ms var(--ease-out);
+  }
+  .bar-col:active{
+    background-color: rgba(10,132,255,0.08);
+    transform: scale(0.96);
+    opacity: 0.85;
+  }
+  .bar-value{
+    font-size: 6.6px;
+    font-weight: 700;
+    color: var(--blue-dark);
+    white-space: nowrap;
+    margin-bottom: 3px;
+  }
+  .bar{
+    width: 100%;
+    max-width: 8px;
+    border-radius: 4px 4px 2px 2px;
+    background: var(--bar-empty);
+    transition: transform 220ms var(--ease-out), background-color 220ms var(--ease-out);
+    min-height: 3px;
+  }
+  .bar.has-data{ background: linear-gradient(180deg, #34AAFF 0%, var(--blue) 100%); }
+  .bar-day{
+    font-size: 6.5px;
+    color: var(--label-tertiary);
+    margin-top: 6px;
+    font-weight: 500;
+  }
+  .bar-col.is-today .bar-day{ color: var(--blue); font-weight:700; }
+  .bar-col.is-today .bar{ box-shadow: 0 0 0 1.5px var(--blue); }
+
+  /* ============================================================
+     BOTTOM SHEET — tap a day's bar to open this and edit
+     everything (러닝 / 하체 / 상체) for that day at once
+     ============================================================ */
+  #overlay{
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 260ms var(--ease-out);
+    z-index: 50;
+  }
+  #overlay.open{ opacity: 1; pointer-events: auto; }
+
+  #sheet{
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    max-width: 480px;
+    margin: 0 auto;
+    background: var(--card);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.15);
+    transform: translateY(100%);
+    transition: transform 320ms var(--ease-out);
+    z-index: 51;
+    padding-bottom: env(safe-area-inset-bottom, 20px);
+    max-height: 86vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  #sheet.open{ transform: translateY(0); }
+
+  .sheet-handle{
+    width: 36px; height: 5px;
+    background: var(--separator);
+    border-radius: 3px;
+    margin: 10px auto 4px;
+  }
+
+  .sheet-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 10px 18px 14px;
+  }
+  .sheet-title{
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--label);
+    letter-spacing: -0.2px;
+  }
+  .sheet-title .today-pill{
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--blue);
+    padding: 3px 8px;
+    border-radius: 20px;
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+  .sheet-done{
+    border: none;
+    background: transparent;
+    color: var(--blue);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 6px 4px;
+    border-radius: var(--radius-sm);
+    transition: opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+  }
+  .sheet-done:active{ opacity: 0.5; transform: scale(0.95); }
+
+  .exercise-group{ padding: 6px 18px 16px; }
+  .exercise-group + .exercise-group{
+    border-top: 1px solid var(--separator);
+    padding-top: 16px;
+  }
+  .exercise-name{
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--label);
+    margin-bottom: 10px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .exercise-name .dot{ width:7px; height:7px; border-radius:50%; }
+  .dot.running{ background:#FF9F0A; }
+  .dot.lower{ background:#30D158; }
+  .dot.upper{ background:#FF453A; }
+
+  .field-row{ display:flex; gap: 10px; }
+  .field{ flex:1; display:flex; flex-direction:column; gap: 5px; }
+  .field label{ font-size: 11px; color: var(--label-secondary); font-weight: 500; padding-left: 2px; }
+  .field input{
+    font-family: var(--font);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--label);
+    background: var(--bg);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 12px 10px;
+    width: 100%;
+    text-align:center;
+    -moz-appearance: textfield;
+    transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out);
+  }
+  .field input::-webkit-outer-spin-button,
+  .field input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+  .field input:focus{
+    outline: 2px solid var(--blue);
+    outline-offset: 1px;
+    background: #fff;
+  }
+  .field input:active{ transform: scale(0.98); }
+
+  ::selection{ background: rgba(10,132,255,0.25); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <div class="page-title">운동 기록</div>
+    <div class="month-switcher">
+      <button class="arrow-btn" id="prevMonthBtn" aria-label="이전 달">‹</button>
+      <div class="month-label" id="monthLabel">2026년 7월</div>
+      <button class="arrow-btn" id="nextMonthBtn" aria-label="다음 달">›</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Monthly totals -->
+    <div class="card summary-card">
+      <div class="summary-item">
+        <div class="summary-label">총 러닝거리</div>
+        <div class="summary-value" id="totalDistance">0<span class="unit">km</span></div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-label">총 운동시간</div>
+        <div class="summary-value" id="totalTime">0<span class="unit">분</span></div>
+      </div>
+    </div>
+
+    <!-- Running bar chart — tap any day's bar to log everything for that day -->
+    <div class="card chart-card">
+      <div class="chart-title">이번 달 러닝 기록</div>
+      <div class="chart-hint">날짜를 터치하면 기록을 입력할 수 있어요</div>
+      <div class="chart-wrap" id="chartWrap"></div>
+    </div>
+  </main>
+</div>
+
+<!-- Bottom sheet: single place to edit 러닝 / 하체 / 상체 for the tapped day -->
+<div id="overlay"></div>
+<div id="sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title" id="sheetTitle">7월 5일</div>
+    <button class="sheet-done" id="sheetDoneBtn">완료</button>
+  </div>
+
+  <div class="exercise-group">
+    <div class="exercise-name"><span class="dot running"></span>러닝</div>
+    <div class="field-row">
+      <div class="field">
+        <label for="in-running-distance">거리(km)</label>
+        <input type="number" inputmode="decimal" min="0" step="0.1" id="in-running-distance" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="in-running-time">운동시간(분)</label>
+        <input type="number" inputmode="decimal" min="0" step="1" id="in-running-time" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="exercise-group">
+    <div class="exercise-name"><span class="dot lower"></span>하체</div>
+    <div class="field-row">
+      <div class="field">
+        <label for="in-lower-weight">무게(kg)</label>
+        <input type="number" inputmode="decimal" min="0" step="1" id="in-lower-weight" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="in-lower-sets">세트 수</label>
+        <input type="number" inputmode="decimal" min="0" step="1" id="in-lower-sets" placeholder="0">
+      </div>
+    </div>
+  </div>
+
+  <div class="exercise-group">
+    <div class="exercise-name"><span class="dot upper"></span>상체</div>
+    <div class="field-row">
+      <div class="field">
+        <label for="in-upper-weight">무게(kg)</label>
+        <input type="number" inputmode="decimal" min="0" step="1" id="in-upper-weight" placeholder="0">
+      </div>
+      <div class="field">
+        <label for="in-upper-sets">세트 수</label>
+        <input type="number" inputmode="decimal" min="0" step="1" id="in-upper-sets" placeholder="0">
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ============================================================
+     STATE
+     ============================================================ */
+  const STORAGE_KEY = "workoutTrackerData";
+  const today = new Date();
+
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth(); // 0-indexed
+  let activeDay = null; // day currently open in the bottom sheet
+
+  // { "2026-07": { "1": { running:{distance,time}, lower:{weight,sets}, upper:{weight,sets} }, ... } }
+  let allData = loadAllData();
+
+  let saveTimer = null;
+
+  /* ============================================================
+     PERSISTENCE
+     ============================================================ */
+  function loadAllData(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    }catch(e){
+      console.warn("저장된 데이터를 불러오지 못했습니다.", e);
+      return {};
+    }
+  }
+
+  function persist(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+    }catch(e){
+      console.warn("데이터 저장에 실패했습니다.", e);
+    }
+  }
+
+  function scheduleSave(){
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(persist, 200);
+  }
+
+  function monthKey(year, month){
+    return year + "-" + String(month + 1).padStart(2, "0");
+  }
+
+  function getMonthData(year, month){
+    const key = monthKey(year, month);
+    if(!allData[key]) allData[key] = {};
+    return allData[key];
+  }
+
+  function getDayEntry(year, month, day){
+    const monthData = getMonthData(year, month);
+    if(!monthData[day]){
+      monthData[day] = {
+        running: { distance: 0, time: 0 },
+        lower:   { weight: 0, sets: 0 },
+        upper:   { weight: 0, sets: 0 }
+      };
+    }
+    return monthData[day];
+  }
+
+  /* ============================================================
+     HELPERS
+     ============================================================ */
+  function daysInMonth(year, month){
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  function isToday(year, month, day){
+    return year === today.getFullYear() &&
+           month === today.getMonth() &&
+           day === today.getDate();
+  }
+
+  function fmtDistance(n){
+    const rounded = Math.round(n * 10) / 10;
+    return (rounded % 1 === 0) ? rounded.toString() : rounded.toFixed(1);
+  }
+
+  /* ============================================================
+     RENDER: HEADER / SUMMARY / CHART
+     ============================================================ */
+  function renderMonthLabel(){
+    document.getElementById("monthLabel").textContent = `${viewYear}년 ${viewMonth + 1}월`;
+  }
+
+  function renderSummary(){
+    const monthData = getMonthData(viewYear, viewMonth);
+    let totalDistance = 0;
+    let totalTime = 0;
+
+    Object.values(monthData).forEach(entry => {
+      totalDistance += (entry.running?.distance || 0);
+      totalTime += (entry.running?.time || 0);
+    });
+
+    document.getElementById("totalDistance").innerHTML =
+      `${fmtDistance(totalDistance)}<span class="unit">km</span>`;
+    document.getElementById("totalTime").innerHTML =
+      `${Math.round(totalTime)}<span class="unit">분</span>`;
+  }
+
+  function renderChart(){
+    const wrap = document.getElementById("chartWrap");
+    wrap.innerHTML = "";
+
+    const numDays = daysInMonth(viewYear, viewMonth);
+    const monthData = getMonthData(viewYear, viewMonth);
+
+    let maxMinutes = 10;
+    for(let d = 1; d <= numDays; d++){
+      const t = monthData[d]?.running?.time || 0;
+      if(t > maxMinutes) maxMinutes = t;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    for(let d = 1; d <= numDays; d++){
+      const entry = monthData[d];
+      const minutes = entry?.running?.time || 0;
+      const distance = entry?.running?.distance || 0;
+      const hasData = minutes > 0;
+
+      const col = document.createElement("div");
+      col.className = "bar-col" + (isToday(viewYear, viewMonth, d) ? " is-today" : "");
+      col.dataset.day = d;
+
+      const heightPct = hasData ? Math.max((minutes / maxMinutes) * 100, 6) : 4;
+
+      col.innerHTML = `
+        <div class="bar-value">${hasData ? fmtDistance(distance) + "km" : "&nbsp;"}</div>
+        <div class="bar ${hasData ? "has-data" : ""}" style="height:${heightPct}%"></div>
+        <div class="bar-day">${d}</div>
+      `;
+
+      col.addEventListener("click", () => openSheet(d));
+
+      fragment.appendChild(col);
+    }
+
+    wrap.appendChild(fragment);
+  }
+
+  /* ============================================================
+     BOTTOM SHEET — open / populate / close
+     ============================================================ */
+  const overlay = document.getElementById("overlay");
+  const sheet = document.getElementById("sheet");
+
+  function openSheet(day){
+    activeDay = day;
+    const entry = getDayEntry(viewYear, viewMonth, day);
+
+    document.getElementById("sheetTitle").innerHTML =
+      `${viewMonth + 1}월 ${day}일` +
+      (isToday(viewYear, viewMonth, Number(day)) ? '<span class="today-pill">오늘</span>' : "");
+
+    setInputValue("in-running-distance", entry.running.distance);
+    setInputValue("in-running-time", entry.running.time);
+    setInputValue("in-lower-weight", entry.lower.weight);
+    setInputValue("in-lower-sets", entry.lower.sets);
+    setInputValue("in-upper-weight", entry.upper.weight);
+    setInputValue("in-upper-sets", entry.upper.sets);
+
+    overlay.classList.add("open");
+    sheet.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeSheet(){
+    overlay.classList.remove("open");
+    sheet.classList.remove("open");
+    document.body.style.overflow = "";
+    activeDay = null;
+  }
+
+  function setInputValue(id, value){
+    document.getElementById(id).value = value > 0 ? value : "";
+  }
+
+  function handleSheetInput(e){
+    const input = e.target;
+    if(input.tagName !== "INPUT" || activeDay === null) return;
+
+    const [, category, field] = input.id.split("-"); // "in-running-distance" -> running, distance
+    const entry = getDayEntry(viewYear, viewMonth, activeDay);
+    const num = parseFloat(input.value);
+    entry[category][field] = isNaN(num) || num < 0 ? 0 : num;
+
+    scheduleSave();
+
+    if(category === "running"){
+      renderChart();
+      renderSummary();
+    }
+  }
+
+  /* ============================================================
+     EVENTS: month navigation
+     ============================================================ */
+  function goToMonth(delta){
+    viewMonth += delta;
+    if(viewMonth > 11){ viewMonth = 0; viewYear++; }
+    if(viewMonth < 0){ viewMonth = 11; viewYear--; }
+    renderAll();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /* ============================================================
+     MASTER RENDER
+     ============================================================ */
+  function renderAll(){
+    renderMonthLabel();
+    renderSummary();
+    renderChart();
+  }
+
+  /* ============================================================
+     INIT
+     ============================================================ */
+  function init(){
+    document.getElementById("prevMonthBtn").addEventListener("click", () => goToMonth(-1));
+    document.getElementById("nextMonthBtn").addEventListener("click", () => goToMonth(1));
+    document.getElementById("sheetDoneBtn").addEventListener("click", closeSheet);
+    overlay.addEventListener("click", closeSheet);
+    sheet.addEventListener("input", handleSheetInput);
+
+    renderAll();
+  }
+
+  document.addEventListener("DOMContentLoaded", init);
+})();
+</script>
+
+</body>
+</html>
