@@ -6,7 +6,7 @@
 <title>운동 기록</title>
 <style>
   /* ============================================================
-     DESIGN TOKENS — Apple Settings-app inspired
+     DESIGN TOKENS — Apple Settings / Health inspired
      ============================================================ */
   :root{
     --bg: #F2F2F7;
@@ -14,6 +14,8 @@
     --label: #000000;
     --label-secondary: #8A8A8E;
     --label-tertiary: #C7C7CC;
+    --axis-gray: #8E8E93;
+    --grid-gray: #E5E5EA;
     --separator: #E5E5EA;
     --blue: #0A84FF;
     --blue-dark: #0060DF;
@@ -50,13 +52,31 @@
      HEADER
      ============================================================ */
   header{ padding: 8px 20px 4px; }
+  .title-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin: 10px 0 16px;
+  }
   .page-title{
     font-size: 34px;
     font-weight: 700;
     letter-spacing: -0.4px;
     color: var(--label);
-    margin: 10px 0 16px;
   }
+  .icon-btn{
+    width:38px; height:38px;
+    display:flex; align-items:center; justify-content:center;
+    border:none; background: var(--card);
+    border-radius: 50%;
+    color: var(--label-secondary);
+    cursor:pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    transition: background-color 200ms var(--ease-out), transform 200ms var(--ease-out), opacity 200ms var(--ease-out);
+  }
+  .icon-btn:active{ transform: scale(0.90); opacity: 0.7; }
+  .icon-btn svg{ width:19px; height:19px; }
+
   .month-switcher{
     display:flex;
     align-items:center;
@@ -116,11 +136,15 @@
   .summary-label{ font-size: 12px; color: var(--label-secondary); font-weight: 500; margin-bottom: 4px; }
   .summary-value{ font-size: 22px; font-weight: 700; color: var(--label); letter-spacing: -0.3px; }
   .summary-value .unit{ font-size: 14px; font-weight: 600; color: var(--label-secondary); margin-left: 1px; }
+  .summary-change{ font-size: 11px; font-weight: 700; margin-top: 4px; }
+  .summary-change.up{ color: #30D158; }
+  .summary-change.down{ color: #FF453A; }
+  .summary-change.flat{ color: var(--label-tertiary); }
 
   /* ============================================================
      CHART CARD — the single entry point for editing any day
      ============================================================ */
-  .chart-card{ padding: 16px 14px 10px; }
+  .chart-card{ padding: 16px 14px 14px; }
   .chart-title{
     font-size: 13px;
     font-weight: 600;
@@ -132,62 +156,135 @@
   .chart-hint{
     font-size: 11.5px;
     color: var(--label-tertiary);
-    margin: 0 4px 14px;
+    margin: 0 4px 18px;
   }
-  .chart-wrap{
-    position:relative;
+
+  /* ============================================================
+     HORIZONTAL BAR CHART — rows = dates (Y axis), bar length = minutes (X axis)
+     ============================================================ */
+
+  /* Header row of time ticks (0, 5, 10 ... minutes), mirrors the exact
+     flex widths of a data row below so ticks line up with their gridlines. */
+  .hchart-header{
     display:flex;
-    align-items:flex-end;
-    gap: 3px;
-    height: 160px;
-    padding-top: 22px;
-  }
-  .bar-col{
-    flex:1;
-    display:flex;
-    flex-direction:column;
     align-items:center;
-    justify-content:flex-end;
-    height:100%;
+    gap: 6px;
+    padding: 0 2px 6px;
+  }
+  .hchart-header-spacer{ flex-shrink:0; }
+  .hchart-header-spacer.left{ width: 20px; }
+  .hchart-header-spacer.right{ width: 34px; }
+  .hchart-header-ticks{
+    flex:1;
+    min-width:0;
+    position:relative;
+    height: 12px;
+  }
+  .hchart-tick{
+    position:absolute;
+    top:0;
+    font-size: 9px;
+    color: var(--axis-gray);
+    white-space: nowrap;
+    transition: opacity 250ms var(--ease-out), left 250ms var(--ease-out);
+  }
+
+  .hchart-body{ display:flex; flex-direction:column; }
+
+  /* Compact rows so all 31 days fit on one phone screen without scrolling
+     the chart itself — thickness and gaps are intentionally tight. */
+  .hbar-row{ padding: 2px 0; }
+
+  .hbar-main{
+    display:flex;
+    align-items:center;
+    gap: 6px;
     cursor:pointer;
     border-radius: 6px;
-    transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out), opacity 180ms var(--ease-out);
+    transition: background-color 180ms var(--ease-out), transform 180ms var(--ease-out);
   }
-  .bar-col:active{
-    background-color: rgba(10,132,255,0.08);
-    transform: scale(0.96);
-    opacity: 0.85;
+  .hbar-main:active{
+    background-color: rgba(10,132,255,0.06);
+    transform: scale(0.99);
   }
-  .bar-value{
-    font-size: 6.6px;
+
+  /* Same width as .hchart-header-spacer.left, so every date lines up
+     exactly with its own bar/gridlines — this is the alignment fix. */
+  .hbar-daylabel{
+    width: 20px;
+    flex-shrink: 0;
+    text-align:right;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--label-secondary);
+  }
+  .hbar-daylabel.is-today{ color: var(--blue); font-weight:700; }
+
+  .hbar-track-wrap{
+    flex:1;
+    min-width:0;
+    position:relative;
+    height: 9px; /* thin, Apple-Health-style track */
+    overflow: visible; /* badges overlaid on top may peek slightly beyond it */
+  }
+  .hbar-grid{ position:absolute; inset:0; z-index:0; }
+  .hbar-gridline{
+    position:absolute;
+    top:0; bottom:0;
+    width:1px;
+    background: var(--grid-gray);
+    transition: opacity 250ms var(--ease-out), left 250ms var(--ease-out);
+  }
+  .hbar-fill{
+    position:absolute;
+    left:0; top:0; bottom:0;
+    min-width: 2px;
+    border-radius: 0 3px 3px 0;
+    background: var(--bar-empty);
+    z-index:1;
+    transition: width 250ms var(--ease-out), background 250ms var(--ease-out), box-shadow 250ms var(--ease-out);
+  }
+  .hbar-fill.is-today{ box-shadow: 0 0 0 1.5px var(--blue); }
+
+  /* Same width as .hchart-header-spacer.right */
+  .hbar-distance{
+    width: 34px;
+    flex-shrink: 0;
+    font-size: 9px;
     font-weight: 700;
     color: var(--blue-dark);
     white-space: nowrap;
-    margin-bottom: 3px;
   }
-  .bar{
-    width: 100%;
-    max-width: 8px;
-    border-radius: 4px 4px 2px 2px;
-    background: var(--bar-empty);
-    transition: transform 220ms var(--ease-out), background-color 220ms var(--ease-out);
-    min-height: 3px;
+
+  /* 하체/상체 records overlaid directly on the running bar itself
+     (not a separate row below), anchored to the right edge of the track. */
+  .hbar-badges{
+    position: absolute;
+    top: 50%;
+    right: 2px;
+    transform: translateY(-50%);
+    display:flex;
+    gap: 3px;
+    z-index: 2;
+    pointer-events: none;
+    animation: cardIn 220ms var(--ease-out);
   }
-  .bar.has-data{ background: linear-gradient(180deg, #34AAFF 0%, var(--blue) 100%); }
-  .bar-day{
-    font-size: 6.5px;
-    color: var(--label-tertiary);
-    margin-top: 6px;
-    font-weight: 500;
+  .badge{
+    font-size: 7.5px;
+    font-weight: 700;
+    padding: 1.5px 5px;
+    border-radius: 6px;
+    white-space: nowrap;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.7);
   }
-  .bar-col.is-today .bar-day{ color: var(--blue); font-weight:700; }
-  .bar-col.is-today .bar{ box-shadow: 0 0 0 1.5px var(--blue); }
+  .badge.lower{ background: rgba(48,209,88,0.9); color: #FFFFFF; }
+  .badge.upper{ background: rgba(255,69,58,0.9); color: #FFFFFF; }
+
 
   /* ============================================================
-     BOTTOM SHEET — tap a day's bar to open this and edit
-     everything (러닝 / 하체 / 상체) for that day at once
+     BOTTOM SHEETS (shared look) — day entry + settings
      ============================================================ */
-  #overlay{
+  .overlay{
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.4);
@@ -196,9 +293,9 @@
     transition: opacity 260ms var(--ease-out);
     z-index: 50;
   }
-  #overlay.open{ opacity: 1; pointer-events: auto; }
+  .overlay.open{ opacity: 1; pointer-events: auto; }
 
-  #sheet{
+  .sheet{
     position: fixed;
     left: 0; right: 0; bottom: 0;
     max-width: 480px;
@@ -214,7 +311,7 @@
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
-  #sheet.open{ transform: translateY(0); }
+  .sheet.open{ transform: translateY(0); }
 
   .sheet-handle{
     width: 36px; height: 5px;
@@ -303,6 +400,36 @@
   }
   .field input:active{ transform: scale(0.98); }
 
+  /* Settings sheet */
+  .settings-list{ padding: 4px 18px 22px; }
+  .settings-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    width:100%;
+    background: var(--bg);
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 15px 16px;
+    margin-bottom: 10px;
+    font-family: var(--font);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--label);
+    cursor: pointer;
+    text-align:left;
+    transition: transform 180ms var(--ease-out), opacity 180ms var(--ease-out), background-color 180ms var(--ease-out);
+  }
+  .settings-row:active{ transform: scale(0.98); opacity:0.85; }
+  .settings-row.danger{ color: #FF3B30; }
+  .settings-row .chev{ color: var(--label-tertiary); font-size: 14px; }
+  .settings-note{
+    font-size: 12px;
+    color: var(--label-tertiary);
+    padding: 4px 4px 2px;
+    line-height:1.5;
+  }
+
   ::selection{ background: rgba(10,132,255,0.25); }
 </style>
 </head>
@@ -310,7 +437,15 @@
 
 <div id="app">
   <header>
-    <div class="page-title">운동 기록</div>
+    <div class="title-row">
+      <div class="page-title">운동 기록</div>
+      <button class="icon-btn" id="settingsBtn" aria-label="설정">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+      </button>
+    </div>
     <div class="month-switcher">
       <button class="arrow-btn" id="prevMonthBtn" aria-label="이전 달">‹</button>
       <div class="month-label" id="monthLabel">2026년 7월</div>
@@ -322,27 +457,37 @@
     <!-- Monthly totals -->
     <div class="card summary-card">
       <div class="summary-item">
-        <div class="summary-label">총 러닝거리</div>
-        <div class="summary-value" id="totalDistance">0<span class="unit">km</span></div>
+        <div class="summary-label">평균 러닝거리</div>
+        <div class="summary-value" id="avgDistance">0<span class="unit">km</span></div>
+        <div class="summary-change flat" id="distanceChange">―</div>
       </div>
       <div class="summary-item">
-        <div class="summary-label">총 운동시간</div>
-        <div class="summary-value" id="totalTime">0<span class="unit">분</span></div>
+        <div class="summary-label">평균 운동시간</div>
+        <div class="summary-value" id="avgTime">0<span class="unit">분</span></div>
+        <div class="summary-change flat" id="timeChange">―</div>
       </div>
     </div>
 
-    <!-- Running bar chart — tap any day's bar to log everything for that day -->
+    <!-- Horizontal bar chart: each row is a date, bar length is minutes run.
+         하체/상체 기록은 배지로 바로 보이고, 행을 터치하면 세 종목 모두 편집 가능 -->
     <div class="card chart-card">
-      <div class="chart-title">이번 달 러닝 기록</div>
-      <div class="chart-hint">날짜를 터치하면 기록을 입력할 수 있어요</div>
-      <div class="chart-wrap" id="chartWrap"></div>
+      <div class="chart-title">이번 달 운동 기록</div>
+      <div class="chart-hint">날짜를 터치하면 자세히 입력할 수 있어요</div>
+
+      <div class="hchart-header">
+        <div class="hchart-header-spacer left"></div>
+        <div class="hchart-header-ticks" id="hchartTicks"></div>
+        <div class="hchart-header-spacer right"></div>
+      </div>
+
+      <div class="hchart-body" id="hchartBody"></div>
     </div>
   </main>
 </div>
 
-<!-- Bottom sheet: single place to edit 러닝 / 하체 / 상체 for the tapped day -->
-<div id="overlay"></div>
-<div id="sheet">
+<!-- Day-entry bottom sheet: edit 러닝 / 하체 / 상체 for the tapped day -->
+<div class="overlay" id="overlay"></div>
+<div class="sheet" id="sheet">
   <div class="sheet-handle"></div>
   <div class="sheet-header">
     <div class="sheet-title" id="sheetTitle">7월 5일</div>
@@ -392,6 +537,32 @@
   </div>
 </div>
 
+<!-- Settings bottom sheet -->
+<div class="overlay" id="settingsOverlay"></div>
+<div class="sheet" id="settingsSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-header">
+    <div class="sheet-title">설정</div>
+    <button class="sheet-done" id="settingsDoneBtn">완료</button>
+  </div>
+  <div class="settings-list">
+    <button class="settings-row" id="exportBtn">
+      <span>데이터 내보내기 (JSON)</span>
+      <span class="chev">›</span>
+    </button>
+    <button class="settings-row" id="importBtn">
+      <span>데이터 가져오기 (JSON)</span>
+      <span class="chev">›</span>
+    </button>
+    <button class="settings-row danger" id="resetBtn">
+      <span>모든 기록 초기화</span>
+      <span class="chev">›</span>
+    </button>
+    <div class="settings-note">내보내기는 모든 월의 기록을 하나의 JSON 파일로 저장합니다. 가져오기는 현재 데이터를 덮어씁니다.</div>
+  </div>
+  <input type="file" id="importFileInput" accept="application/json" style="display:none">
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -404,7 +575,8 @@
 
   let viewYear = today.getFullYear();
   let viewMonth = today.getMonth(); // 0-indexed
-  let activeDay = null; // day currently open in the bottom sheet
+  let activeDay = null; // day currently open in the day-entry sheet
+  let currentAxisMax = 30; // tracks the last-rendered Y-axis ceiling, for animation decisions
 
   // { "2026-07": { "1": { running:{distance,time}, lower:{weight,sets}, upper:{weight,sets} }, ... } }
   let allData = loadAllData();
@@ -478,71 +650,341 @@
   }
 
   /* ============================================================
-     RENDER: HEADER / SUMMARY / CHART
+     SCORING — separated, single-purpose functions (see req #9)
+     ============================================================ */
+
+  // Normalizes a value into 0..1 given the min/max seen across the month.
+  // Falls back to 1 when every day is tied, so a lone/only record still
+  // reads as a strong (dark) bar rather than washed out.
+  function normalize(value, min, max){
+    if(max - min <= 0) return 1;
+    return (value - min) / (max - min);
+  }
+
+  // Computes a 0..1 performance score for one day's run, relative only to
+  // the other running days within the currently viewed month.
+  //   - 50% pace/efficiency (distance per minute)
+  //   - 50% total time invested that day
+  function calculateRunningScore(day, monthStats){
+    const entry = monthStats.entries[day];
+    if(!entry || entry.time <= 0) return 0;
+
+    const efficiency = entry.distance / entry.time;
+    const effScore = normalize(efficiency, monthStats.minEfficiency, monthStats.maxEfficiency);
+    const timeScore = normalize(entry.time, monthStats.minTime, monthStats.maxTime);
+
+    return Math.min(1, Math.max(0, 0.5 * effScore + 0.5 * timeScore));
+  }
+
+  // Gathers the min/max stats needed to normalize scores for a given month.
+  // Only days that actually have a run (time > 0) participate.
+  function buildMonthStats(monthData, numDays){
+    const entries = {};
+    let minEff = Infinity, maxEff = -Infinity;
+    let minTime = Infinity, maxTime = -Infinity;
+
+    for(let d = 1; d <= numDays; d++){
+      const running = monthData[d]?.running;
+      const time = running?.time || 0;
+      if(time <= 0) continue;
+
+      const distance = running?.distance || 0;
+      const efficiency = distance / time;
+
+      entries[d] = { distance, time, efficiency };
+      if(efficiency < minEff) minEff = efficiency;
+      if(efficiency > maxEff) maxEff = efficiency;
+      if(time < minTime) minTime = time;
+      if(time > maxTime) maxTime = time;
+    }
+
+    if(minEff === Infinity){ minEff = 0; maxEff = 0; minTime = 0; maxTime = 0; }
+
+    return { entries, minEfficiency: minEff, maxEfficiency: maxEff, minTime, maxTime };
+  }
+
+  // Maps a 0..1 score onto the Apple-Health-style blue gradient,
+  // interpolating continuously between the defined stops so colors
+  // never jump abruptly as the score changes.
+  const COLOR_STOPS = [
+    { t: 0.0,  c: [0xB9, 0xDB, 0xFF] }, // 최하위
+    { t: 0.33, c: [0x64, 0xB5, 0xFF] }, // 보통
+    { t: 0.66, c: [0x0A, 0x84, 0xFF] }, // 상위
+    { t: 1.0,  c: [0x00, 0x60, 0xDF] }  // 최상위
+  ];
+
+  function calculateBarColor(score){
+    const s = Math.min(1, Math.max(0, score));
+
+    for(let i = 0; i < COLOR_STOPS.length - 1; i++){
+      const a = COLOR_STOPS[i];
+      const b = COLOR_STOPS[i + 1];
+      if(s >= a.t && s <= b.t){
+        const localT = (b.t - a.t) === 0 ? 0 : (s - a.t) / (b.t - a.t);
+        const r = Math.round(a.c[0] + (b.c[0] - a.c[0]) * localT);
+        const g = Math.round(a.c[1] + (b.c[1] - a.c[1]) * localT);
+        const bl = Math.round(a.c[2] + (b.c[2] - a.c[2]) * localT);
+        return `rgb(${r}, ${g}, ${bl})`;
+      }
+    }
+    const last = COLOR_STOPS[COLOR_STOPS.length - 1].c;
+    return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
+  }
+
+  /* ============================================================
+     Y-AXIS SCALE
+     ============================================================ */
+
+  // Base ticks are fixed at 0,5,...,30. Once any day exceeds 30 minutes,
+  // the ceiling grows in +5 steps to always fit the tallest bar.
+  function computeAxisMax(monthData, numDays){
+    let maxMinutes = 0;
+    for(let d = 1; d <= numDays; d++){
+      const t = monthData[d]?.running?.time || 0;
+      if(t > maxMinutes) maxMinutes = t;
+    }
+    if(maxMinutes <= 30) return 30;
+    return Math.ceil(maxMinutes / 5) * 5;
+  }
+
+  function buildTicks(axisMax){
+    const ticks = [];
+    for(let v = 0; v <= axisMax; v += 5) ticks.push(v);
+    return ticks;
+  }
+
+  /* ============================================================
+     RENDER: HEADER / SUMMARY
      ============================================================ */
   function renderMonthLabel(){
     document.getElementById("monthLabel").textContent = `${viewYear}년 ${viewMonth + 1}월`;
   }
 
-  function renderSummary(){
-    const monthData = getMonthData(viewYear, viewMonth);
+  // Average distance/time per running day (days with time > 0) for a given
+  // month, plus how many such days there were.
+  function calcMonthRunningAverages(year, month){
+    const monthData = getMonthData(year, month);
     let totalDistance = 0;
     let totalTime = 0;
+    let runDays = 0;
 
     Object.values(monthData).forEach(entry => {
-      totalDistance += (entry.running?.distance || 0);
-      totalTime += (entry.running?.time || 0);
+      const time = entry.running?.time || 0;
+      if(time > 0){
+        totalDistance += entry.running?.distance || 0;
+        totalTime += time;
+        runDays++;
+      }
     });
 
-    document.getElementById("totalDistance").innerHTML =
-      `${fmtDistance(totalDistance)}<span class="unit">km</span>`;
-    document.getElementById("totalTime").innerHTML =
-      `${Math.round(totalTime)}<span class="unit">분</span>`;
+    return {
+      avgDistance: runDays > 0 ? totalDistance / runDays : 0,
+      avgTime: runDays > 0 ? totalTime / runDays : 0,
+      runDays
+    };
   }
 
-  function renderChart(){
-    const wrap = document.getElementById("chartWrap");
-    wrap.innerHTML = "";
+  function getPreviousMonth(year, month){
+    let y = year, m = month - 1;
+    if(m < 0){ m = 11; y--; }
+    return { year: y, month: m };
+  }
 
+  // Turns a current/previous pair into a small "▲ 12%" / "▼ 8%" style
+  // indicator. No prior data to compare against reads as "신규" (new)
+  // rather than a misleading infinite percentage.
+  function formatChange(current, previous){
+    if(previous <= 0){
+      return current > 0 ? { text: "신규", cls: "up" } : { text: "―", cls: "flat" };
+    }
+    const diffPct = ((current - previous) / previous) * 100;
+    if(Math.abs(diffPct) < 0.5) return { text: "―", cls: "flat" };
+    const rounded = Math.round(Math.abs(diffPct));
+    return diffPct > 0
+      ? { text: `▲ ${rounded}%`, cls: "up" }
+      : { text: `▼ ${rounded}%`, cls: "down" };
+  }
+
+  function renderSummary(){
+    const current = calcMonthRunningAverages(viewYear, viewMonth);
+    const prev = getPreviousMonth(viewYear, viewMonth);
+    const previous = calcMonthRunningAverages(prev.year, prev.month);
+
+    document.getElementById("avgDistance").innerHTML =
+      `${fmtDistance(current.avgDistance)}<span class="unit">km</span>`;
+    document.getElementById("avgTime").innerHTML =
+      `${Math.round(current.avgTime)}<span class="unit">분</span>`;
+
+    const distanceChange = formatChange(current.avgDistance, previous.avgDistance);
+    const timeChange = formatChange(current.avgTime, previous.avgTime);
+
+    const distanceEl = document.getElementById("distanceChange");
+    distanceEl.textContent = distanceChange.text;
+    distanceEl.className = "summary-change " + distanceChange.cls;
+
+    const timeEl = document.getElementById("timeChange");
+    timeEl.textContent = timeChange.text;
+    timeEl.className = "summary-change " + timeChange.cls;
+  }
+
+  /* ============================================================
+     RENDER: HORIZONTAL CHART (date rows + time x-axis), full rebuild
+     Rows = dates (Y axis), bar length = running minutes (X axis).
+     Each row also shows 하체/상체 badges directly, no tap required.
+     ============================================================ */
+  function renderChart(){
     const numDays = daysInMonth(viewYear, viewMonth);
     const monthData = getMonthData(viewYear, viewMonth);
+    const axisMax = computeAxisMax(monthData, numDays);
+    const monthStats = buildMonthStats(monthData, numDays);
 
-    let maxMinutes = 10;
-    for(let d = 1; d <= numDays; d++){
-      const t = monthData[d]?.running?.time || 0;
-      if(t > maxMinutes) maxMinutes = t;
-    }
+    currentAxisMax = axisMax;
 
+    renderAxisTicks(axisMax);
+    renderRows(numDays, monthData, axisMax, monthStats);
+  }
+
+  // Time-axis header ("0  5  10 ... 30"). Positioned with the exact same
+  // percentages as each row's gridlines, so ticks and gridlines always
+  // line up — this also keeps the day-label column width in sync via
+  // the shared .hchart-header-spacer.left / .hbar-daylabel widths.
+  function renderAxisTicks(axisMax){
+    const wrap = document.getElementById("hchartTicks");
+    wrap.innerHTML = "";
+    const ticks = buildTicks(axisMax);
     const fragment = document.createDocumentFragment();
 
-    for(let d = 1; d <= numDays; d++){
-      const entry = monthData[d];
-      const minutes = entry?.running?.time || 0;
-      const distance = entry?.running?.distance || 0;
-      const hasData = minutes > 0;
+    ticks.forEach((v, i) => {
+      const tick = document.createElement("div");
+      tick.className = "hchart-tick";
+      tick.textContent = v;
 
-      const col = document.createElement("div");
-      col.className = "bar-col" + (isToday(viewYear, viewMonth, d) ? " is-today" : "");
-      col.dataset.day = d;
+      const pct = axisMax === 0 ? 0 : (v / axisMax) * 100;
+      tick.style.left = pct + "%";
 
-      const heightPct = hasData ? Math.max((minutes / maxMinutes) * 100, 6) : 4;
+      // First tick hugs the left edge, last hugs the right edge,
+      // everything in between is centered on its gridline.
+      if(i === 0) tick.style.transform = "translateX(0)";
+      else if(i === ticks.length - 1) tick.style.transform = "translateX(-100%)";
+      else tick.style.transform = "translateX(-50%)";
 
-      col.innerHTML = `
-        <div class="bar-value">${hasData ? fmtDistance(distance) + "km" : "&nbsp;"}</div>
-        <div class="bar ${hasData ? "has-data" : ""}" style="height:${heightPct}%"></div>
-        <div class="bar-day">${d}</div>
-      `;
-
-      col.addEventListener("click", () => openSheet(d));
-
-      fragment.appendChild(col);
-    }
+      fragment.appendChild(tick);
+    });
 
     wrap.appendChild(fragment);
   }
 
+  function renderRows(numDays, monthData, axisMax, monthStats){
+    const body = document.getElementById("hchartBody");
+    body.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+
+    for(let d = 1; d <= numDays; d++){
+      fragment.appendChild(buildRow(d, monthData, axisMax, monthStats));
+    }
+
+    body.appendChild(fragment);
+  }
+
+  function buildRow(day, monthData, axisMax, monthStats){
+    const entry = monthData[day];
+    const minutes = entry?.running?.time || 0;
+    const distance = entry?.running?.distance || 0;
+    const hasRun = minutes > 0;
+    const todayFlag = isToday(viewYear, viewMonth, day);
+
+    const row = document.createElement("div");
+    row.className = "hbar-row";
+    row.dataset.day = day;
+
+    const widthPct = hasRun ? Math.max((minutes / axisMax) * 100, 1.5) : 0;
+    const color = hasRun ? calculateBarColor(calculateRunningScore(day, monthStats)) : "var(--bar-empty)";
+
+    row.innerHTML = `
+      <div class="hbar-main">
+        <div class="hbar-daylabel${todayFlag ? " is-today" : ""}">${day}</div>
+        <div class="hbar-track-wrap">
+          <div class="hbar-grid">${buildGridLinesHtml(axisMax)}</div>
+          <div class="hbar-fill${todayFlag ? " is-today" : ""}" style="width:${widthPct}%; background:${color}"></div>
+          ${buildBadgesHtml(entry)}
+        </div>
+        <div class="hbar-distance">${hasRun ? fmtDistance(distance) + "km" : ""}</div>
+      </div>
+    `;
+
+    row.querySelector(".hbar-main").addEventListener("click", () => openSheet(day));
+    return row;
+  }
+
+  function buildGridLinesHtml(axisMax){
+    return buildTicks(axisMax).map(v => {
+      const pct = axisMax === 0 ? 0 : (v / axisMax) * 100;
+      return `<div class="hbar-gridline" style="left:${pct}%"></div>`;
+    }).join("");
+  }
+
+  // 하체/상체 기록이 있으면 탭 없이도 바로 보이도록 배지로 표시.
+  function buildBadgesHtml(entry){
+    if(!entry) return "";
+    const lower = entry.lower;
+    const upper = entry.upper;
+    const badges = [];
+
+    if(lower && (lower.weight > 0 || lower.sets > 0)){
+      badges.push(`<span class="badge lower">하체 ${lower.weight || 0}kg·${lower.sets || 0}세트</span>`);
+    }
+    if(upper && (upper.weight > 0 || upper.sets > 0)){
+      badges.push(`<span class="badge upper">상체 ${upper.weight || 0}kg·${upper.sets || 0}세트</span>`);
+    }
+
+    return badges.length ? `<div class="hbar-badges">${badges.join("")}</div>` : "";
+  }
+
+  // Lightweight update path used while typing in the day-entry sheet.
+  // If the axis ceiling hasn't changed, we mutate only the affected row
+  // (bar width/color/label + badges) so it transitions smoothly
+  // (250ms ease-out). If the ceiling changed (a new record pushed past
+  // it), we fall back to a full rebuild so every row re-scales together.
+  function updateChartAfterEdit(){
+    const numDays = daysInMonth(viewYear, viewMonth);
+    const monthData = getMonthData(viewYear, viewMonth);
+    const newAxisMax = computeAxisMax(monthData, numDays);
+
+    if(newAxisMax !== currentAxisMax){
+      renderChart();
+      return;
+    }
+
+    const monthStats = buildMonthStats(monthData, numDays);
+    const body = document.getElementById("hchartBody");
+
+    Array.from(body.children).forEach(row => {
+      const d = Number(row.dataset.day);
+      const entry = monthData[d];
+      const minutes = entry?.running?.time || 0;
+      const distance = entry?.running?.distance || 0;
+      const hasRun = minutes > 0;
+
+      const fill = row.querySelector(".hbar-fill");
+      const widthPct = hasRun ? Math.max((minutes / newAxisMax) * 100, 1.5) : 0;
+      fill.style.width = widthPct + "%";
+      fill.style.background = hasRun ? calculateBarColor(calculateRunningScore(d, monthStats)) : "var(--bar-empty)";
+
+      const distEl = row.querySelector(".hbar-distance");
+      distEl.textContent = hasRun ? fmtDistance(distance) + "km" : "";
+
+      // Badges depend on 하체/상체, which can change independently of
+      // 러닝, so refresh them for every row on every edit.
+      const trackWrap = row.querySelector(".hbar-track-wrap");
+      const oldBadges = trackWrap.querySelector(".hbar-badges");
+      const newBadgesHtml = buildBadgesHtml(entry);
+      if(oldBadges) oldBadges.remove();
+      if(newBadgesHtml) trackWrap.insertAdjacentHTML("beforeend", newBadgesHtml);
+    });
+  }
+
   /* ============================================================
-     BOTTOM SHEET — open / populate / close
+     DAY-ENTRY BOTTOM SHEET
      ============================================================ */
   const overlay = document.getElementById("overlay");
   const sheet = document.getElementById("sheet");
@@ -589,10 +1031,72 @@
 
     scheduleSave();
 
+    // Chart rows show 하체/상체 badges too, so refresh on every field —
+    // not just 러닝 — while only 러닝 affects the totals.
+    updateChartAfterEdit();
     if(category === "running"){
-      renderChart();
       renderSummary();
     }
+  }
+
+  /* ============================================================
+     SETTINGS BOTTOM SHEET — export / import / reset
+     ============================================================ */
+  const settingsOverlay = document.getElementById("settingsOverlay");
+  const settingsSheet = document.getElementById("settingsSheet");
+  const importFileInput = document.getElementById("importFileInput");
+
+  function openSettings(){
+    settingsOverlay.classList.add("open");
+    settingsSheet.classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeSettings(){
+    settingsOverlay.classList.remove("open");
+    settingsSheet.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  function exportData(){
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const dateStr = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = `workout-data-${dateStr}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importData(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const parsed = JSON.parse(reader.result);
+        if(typeof parsed !== "object" || parsed === null || Array.isArray(parsed)){
+          throw new Error("잘못된 형식");
+        }
+        allData = parsed;
+        persist();
+        renderAll();
+        closeSettings();
+      }catch(err){
+        alert("파일을 읽을 수 없습니다. 올바른 JSON 백업 파일인지 확인해 주세요.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function resetAllData(){
+    const confirmed = confirm("모든 운동 기록을 삭제합니다. 이 작업은 되돌릴 수 없습니다. 계속할까요?");
+    if(!confirmed) return;
+    allData = {};
+    persist();
+    renderAll();
+    closeSettings();
   }
 
   /* ============================================================
@@ -621,9 +1125,23 @@
   function init(){
     document.getElementById("prevMonthBtn").addEventListener("click", () => goToMonth(-1));
     document.getElementById("nextMonthBtn").addEventListener("click", () => goToMonth(1));
+
     document.getElementById("sheetDoneBtn").addEventListener("click", closeSheet);
     overlay.addEventListener("click", closeSheet);
     sheet.addEventListener("input", handleSheetInput);
+
+    document.getElementById("settingsBtn").addEventListener("click", openSettings);
+    document.getElementById("settingsDoneBtn").addEventListener("click", closeSettings);
+    settingsOverlay.addEventListener("click", closeSettings);
+
+    document.getElementById("exportBtn").addEventListener("click", exportData);
+    document.getElementById("importBtn").addEventListener("click", () => importFileInput.click());
+    importFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if(file) importData(file);
+      importFileInput.value = "";
+    });
+    document.getElementById("resetBtn").addEventListener("click", resetAllData);
 
     renderAll();
   }
